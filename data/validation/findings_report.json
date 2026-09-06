@@ -1,0 +1,94 @@
+{
+  "stage": "data-integrity-validation",
+  "date": "2026-09-03",
+  "dataset": "ElKulako/stocktwits-emoji",
+  "label_source": "Source text files in HuggingFace repository (filename-encoded classes)",
+  "label_encoding": {"0": "Bearish", "1": "Neutral", "2": "Bullish"},
+  "conflict_strategy": "drop",
+
+  "validation_checks": {
+    "A_dataset_integrity": "PASS",
+    "B_label_provenance": "PASS",
+    "C_duplicate_leakage_check": "REVIEW REQUIRED",
+    "D_emoji_extraction": "PASS",
+    "E_canonical_dataset_created": "PASS",
+    "F_experiment_manifest_created": "PASS"
+  },
+
+  "label_provenance": {
+    "train": {"matched_from_source": 210699, "unmatched": 0, "conflicting_texts": 227},
+    "validation": {"matched_from_source": 20676, "unmatched": 0, "conflicting_texts": 40},
+    "test": {"matched_from_source": 11966, "unmatched": 0, "conflicting_texts": 9},
+    "conclusion": "Every retained row maps to exactly one documented source label value; provenance is auditable; zero unmatched."
+  },
+
+  "conflict_investigation": {
+    "finding": "Conflicting rows are a genuine source-annotation artifact: the same normalized text string appears in more than one class file (e.g. 'buy the dip' appears in both Neutral and Bearish files). They are NOT formatting/normalization artifacts and NOT LLM/sentiment assignments.",
+    "breakdown": {
+      "train": {"total": 227, "pairs": {"Bearish/Neutral": 6, "Bearish/Bullish": 4, "Bearish/Neutral/Bullish": 2, "Neutral/Bullish": 215}},
+      "validation": {"total": 40, "pairs": {"Bearish/Neutral": 7, "Bearish/Bullish": 4, "Neutral/Bullish": 29}},
+      "test": {"total": 9, "pairs": {"Bearish/Neutral": 4, "Bearish/Bullish": 1, "Neutral/Bullish": 4}}
+    },
+    "decision": "Keep drop behavior. No deterministic source-grounded way to resolve without guessing."
+  },
+
+  "duplicate_analysis": {
+    "train": {"total_rows": 210699, "unique_texts": 91168, "duplicated_texts": 0, "duplicate_extra_rows": 119531, "multi_label_texts": 0},
+    "validation": {"total_rows": 20676, "unique_texts": 20676, "duplicated_texts": 0, "duplicate_extra_rows": 0, "multi_label_texts": 0},
+    "test": {"total_rows": 11966, "unique_texts": 11966, "duplicated_texts": 0, "duplicate_extra_rows": 0, "multi_label_texts": 0},
+    "cross_split_exact_overlap": {
+      "train_validation": 73,
+      "train_test": 27,
+      "validation_test": 865
+    },
+    "critical_finding": "The HF training split contains 210,699 rows but only 91,168 unique texts. The dataset card documents the true training size as 91,758 observations (57,932 bullish + 26,516 neutral + 7,310 bearish). The extra ~119K training rows are duplicated texts, which is a data-construction artifact of the HF builder. Training on 210,699 rows with ~119K duplicates would overfit duplicates and double-count examples. Also, validation<->test exact overlap is 865 texts (7.2% of test), which weakens independence between model selection and evaluation."
+  },
+
+  "emoji_validation": {
+    "percent_rows_with_emojis": 100.0,
+    "mean_emojis_per_row": 1.492,
+    "median_emojis_per_row": 1.0,
+    "unique_emojis": 1758,
+    "rows_with_zero_emojis": 0,
+    "zwj_sequences_handled": 12790,
+    "skin_tone_sequences_handled": 2,
+    "variation_selector16_handled": 27748,
+    "method": "emoji.distinct_emoji_list / emoji.replace_emoji (Unicode-aware), ZWJ/skin-tone/variation-selector safe."
+  },
+
+  "class_weights_train_only": {
+    "train_distribution": {"Bearish": 35843, "Neutral": 63593, "Bullish": 111263},
+    "train_only_weights": {"Bearish": 1.9595, "Neutral": 1.1044, "Bullish": 0.6312},
+    "validation_distribution": {"Bearish": 4073, "Neutral": 7496, "Bullish": 9107},
+    "test_distribution": {"Bearish": 2608, "Neutral": 4191, "Bullish": 5167},
+    "note": "Weights computed from TRAINING distribution only. Validation/test not rebalanced."
+  },
+
+  "experiment_manifest": {
+    "dataset_hash": "af67b49edbca76f0",
+    "splits": {"train": 210699, "validation": 20676, "test": 11966},
+    "seed": 42,
+    "experiments": ["E0", "E1", "E2", "E3", "E4", "E5"]
+  },
+
+  "colab_feasibility": {
+    "featurize_estimate_min": 7.0,
+    "total_estimate_min": 7.4,
+    "cached_embedding_mem_mb": 617,
+    "feasible_on_t4": true,
+    "note": "Frozen BERT featurization is one-time and cached (~7 min on T4); head training is cheap. Full data is computationally feasible on one T4."
+  },
+
+  "methodological_concerns": [
+    "Training split contains ~119K duplicate rows (artificial inflation to 210,699 vs documented 91,758). MUST decide: deduplicate training to unique texts before training.",
+    "Validation<->test exact-text overlap of 865 texts (7.2% of test) weakens the independence of model selection from final evaluation.",
+    "Class imbalance toward Bullish; use train-only inverse-frequency class weights.",
+    "Conflicting-label rows (~1,162) dropped; keep drop behavior; reported not guessed."
+  ],
+
+  "next_steps": [
+    "AWAITING USER DECISION on whether to deduplicate the training split (recommended: keep unique texts only, ~91K).",
+    "AWAITING USER DECISION on cross-split leakage handling (recommended: report as limitation; small train<->test leakage of 27 texts can be removed from training if strict).",
+    "After approval, rebuild canonical dataset from the agreed split, then proceed to E0-E5."
+  ]
+}

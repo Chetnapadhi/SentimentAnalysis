@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ML checkpoints/models
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors
+*.onnx
+
+# Hugging Face / cache
+.cache/
+.huggingface/
+transformers_cache/
+hf_cache/
+datasets_cache/
+
+# Project caches
+embeddings_cache/
+**/embeddings_cache/
+**/__pycache__/
+
+# Large/generated data
+data/raw/
+data/processed/
+data/inspection/
+results/
+logs/
+
+# Python package build artifacts
+*.egg-info/
+dist/
+build/

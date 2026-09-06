@@ -1,0 +1,42 @@
+project:
+  title: "Emoji-Aware Sentiment Analysis: Do Emojis Carry Signal That Words Miss?"
+  seed: 42
+
+datasets:
+  stocktwits:
+    path: ElKulako/stocktwits-emoji
+    role: primary_supervised_sentiment
+  tweeteval_emoji:
+    path: cardiffnlp/tweet_eval
+    config: emoji
+    role: auxiliary_emoji_representation_learning
+  youtube:
+    path: bapcon/101k-emojis
+    role: emoji_frequency_and_external_analysis_only
+
+text_model:
+  name: bert-base-uncased
+  max_length: 128
+  freeze: true
+
+classifier_head:
+  hidden_size: 768
+  classifier_hidden: 256
+  dropout: 0.3
+  num_labels: 3
+
+emoji:
+  embedding_dim: 32
+  initialization: random
+  pooling: mean
+
+training:
+  batch_size: 32
+  epochs: 5
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  mixed_precision: true
+  early_stop_patience: 5
+
+fusion:
+  type: concat

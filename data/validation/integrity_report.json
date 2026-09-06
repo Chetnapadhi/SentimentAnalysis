@@ -1,0 +1,467 @@
+{
+  "label_provenance": {
+    "train": {
+      "source_files": {
+        "train-emoji-bear-unmodified.txt": 7305,
+        "train-emoji-net-unmodified.txt": 26473,
+        "train-emoji-bull-unmodified.txt": 57846
+      },
+      "matched_from_source": 210699,
+      "total_hf_texts": 210699,
+      "unmatched": 0,
+      "conflicting_texts": 227,
+      "label_counts": {
+        "Bearish": 7305,
+        "Neutral": 26473,
+        "Bullish": 57846
+      }
+    },
+    "validation": {
+      "source_files": {
+        "val_bear.txt": 4084,
+        "val_net.txt": 7524,
+        "val_bull.txt": 9133
+      },
+      "matched_from_source": 20676,
+      "total_hf_texts": 20676,
+      "unmatched": 0,
+      "conflicting_texts": 40,
+      "label_counts": {
+        "Bearish": 4084,
+        "Neutral": 7524,
+        "Bullish": 9133
+      }
+    },
+    "test": {
+      "source_files": {
+        "test_emoji_bear.txt": 2613,
+        "test-emoji-net.txt": 4199,
+        "test-emoji-bull.txt": 5172
+      },
+      "matched_from_source": 11966,
+      "total_hf_texts": 11966,
+      "unmatched": 0,
+      "conflicting_texts": 9,
+      "label_counts": {
+        "Bearish": 2613,
+        "Neutral": 4199,
+        "Bullish": 5172
+      }
+    }
+  },
+  "conflict_investigation": {
+    "train": {
+      "num_conflicts": 227,
+      "conflict_pairs": {
+        "(0, 1)": 6,
+        "(0, 2)": 4,
+        "(0, 1, 2)": 2,
+        "(1, 2)": 215
+      },
+      "sample_conflicts": [
+        {
+          "text": "what would u.s. and e.u. institutions would do if russia does money laundry with bitcoin? think 🧠",
+          "labels": [
+            "Bearish",
+            "Neutral"
+          ]
+        },
+        {
+          "text": "hedge against inflation ❌",
+          "labels": [
+            "Bearish",
+            "Neutral"
+          ]
+        },
+        {
+          "text": "volatility is always to the upside 🌈🐻",
+          "labels": [
+            "Bearish",
+            "Bullish"
+          ]
+        },
+        {
+          "text": "if you waste my time, i will block you immediately, time is money over here... 😑",
+          "labels": [
+            "Bearish",
+            "Bullish"
+          ]
+        },
+        {
+          "text": "that was quick 🤣",
+          "labels": [
+            "Bearish",
+            "Bullish"
+          ]
+        }
+      ]
+    },
+    "validation": {
+      "num_conflicts": 40,
+      "conflict_pairs": {
+        "(0, 1)": 7,
+        "(0, 2)": 4,
+        "(1, 2)": 29
+      },
+      "sample_conflicts": [
+        {
+          "text": ", could save 45k if you listened and buy at 2700 or lower … heading lower around 12500 then much low",
+          "labels": [
+            "Bearish",
+            "Neutral"
+          ]
+        },
+        {
+          "text": "buy the dip 😂",
+          "labels": [
+            "Bearish",
+            "Neutral"
+          ]
+        },
+        {
+          "text": "bottom is in. 😆",
+          "labels": [
+            "Bearish",
+            "Neutral"
+          ]
+        },
+        {
+          "text": "buy the dip 😂😂😂🤡🤡🤡",
+          "labels": [
+            "Bearish",
+            "Neutral"
+          ]
+        },
+        {
+          "text": "burn 🔥 🔥 🔥",
+          "labels": [
+            "Bearish",
+            "Bullish"
+          ]
+        }
+      ]
+    },
+    "test": {
+      "num_conflicts": 9,
+      "conflict_pairs": {
+        "(0, 1)": 4,
+        "(0, 2)": 1,
+        "(1, 2)": 4
+      },
+      "sample_conflicts": [
+        {
+          "text": ", could save 45k if you listened and buy at 2700 or lower … heading lower around 12500 then much low",
+          "labels": [
+            "Bearish",
+            "Neutral"
+          ]
+        },
+        {
+          "text": "to the moon 😂",
+          "labels": [
+            "Bearish",
+            "Bullish"
+          ]
+        },
+        {
+          "text": "you can have all the knowledge in the world but if you can get wins under your belt and you can’t ex",
+          "labels": [
+            "Bearish",
+            "Neutral"
+          ]
+        },
+        {
+          "text": "i’ll buy at 😂",
+          "labels": [
+            "Bearish",
+            "Neutral"
+          ]
+        },
+        {
+          "text": "any time this goes up the creator of the coin dumps lowkey. or all the huge eth whales that loaded w",
+          "labels": [
+            "Bearish",
+            "Neutral"
+          ]
+        }
+      ]
+    }
+  },
+  "duplicate_analysis": {
+    "train": {
+      "total_rows": 210699,
+      "unique_texts": 91278,
+      "duplicated_texts": 77721,
+      "duplicate_extra_rows": 119421,
+      "multi_label_texts": 0,
+      "multi_label_examples": []
+    },
+    "validation": {
+      "total_rows": 20676,
+      "unique_texts": 20676,
+      "duplicated_texts": 0,
+      "duplicate_extra_rows": 0,
+      "multi_label_texts": 0,
+      "multi_label_examples": []
+    },
+    "test": {
+      "total_rows": 11966,
+      "unique_texts": 11966,
+      "duplicated_texts": 0,
+      "duplicate_extra_rows": 0,
+      "multi_label_texts": 0,
+      "multi_label_examples": []
+    },
+    "cross_split_overlap": {
+      "train<->validation": 56,
+      "train<->test": 3,
+      "validation<->test": 51
+    }
+  },
+  "emoji_extraction": {
+    "num_rows": 243341,
+    "rows_with_emojis": 243341,
+    "percent_rows_with_emojis": 100.0,
+    "rows_with_zero_emojis": 0,
+    "total_emoji_occurrences": 363073,
+    "mean_emojis_per_row": 1.492,
+    "median_emojis_per_row": 1.0,
+    "unique_emojis": 1758,
+    "top_30_emojis": [
+      [
+        "😂",
+        33130
+      ],
+      [
+        "🚀",
+        26247
+      ],
+      [
+        "🤣",
+        22598
+      ],
+      [
+        "🔥",
+        11613
+      ],
+      [
+        "🤡",
+        7954
+      ],
+      [
+        "💎",
+        7477
+      ],
+      [
+        "🤔",
+        6862
+      ],
+      [
+        "🐻",
+        6503
+      ],
+      [
+        "🤑",
+        6422
+      ],
+      [
+        "💰",
+        5810
+      ],
+      [
+        "👀",
+        5461
+      ],
+      [
+        "😎",
+        5239
+      ],
+      [
+        "😆",
+        4960
+      ],
+      [
+        "💪",
+        4675
+      ],
+      [
+        "📈",
+        4385
+      ],
+      [
+        "☠️",
+        3922
+      ],
+      [
+        "👍",
+        3744
+      ],
+      [
+        "😅",
+        3632
+      ],
+      [
+        "😉",
+        3542
+      ],
+      [
+        "✅",
+        3321
+      ],
+      [
+        "💯",
+        3143
+      ],
+      [
+        "💥",
+        3121
+      ],
+      [
+        "❤️",
+        3116
+      ],
+      [
+        "🙌",
+        2883
+      ],
+      [
+        "💩",
+        2870
+      ],
+      [
+        "🤦‍♂️",
+        2668
+      ],
+      [
+        "😁",
+        2609
+      ],
+      [
+        "🤷‍♂️",
+        2589
+      ],
+      [
+        "📉",
+        2193
+      ],
+      [
+        "🙄",
+        2178
+      ]
+    ],
+    "emoji_count_distribution": {
+      "1": 172027,
+      "2": 45187,
+      "3": 15461,
+      "4": 5837,
+      "5": 2334,
+      "6": 1088,
+      "7": 550,
+      "8": 283,
+      "9": 186,
+      "11": 96,
+      "10": 89,
+      "12": 71,
+      "13": 31,
+      "14": 27,
+      "17": 18
+    },
+    "zwj_sequences": 12790,
+    "skin_tone_sequences": 2,
+    "variation_selector_16": 27748
+  },
+  "experiment_manifest": {
+    "dataset": "ElKulako/stocktwits-emoji (labels recovered from source files)",
+    "dataset_hash": "af67b49edbca76f0e32f62645e599ff2e4d002c6",
+    "splits": {
+      "train": 210699,
+      "validation": 20676,
+      "test": 11966
+    },
+    "seed": 42,
+    "experiments": {
+      "E0": {
+        "text": true,
+        "emoji": false,
+        "emoji_init": null,
+        "fusion": null
+      },
+      "E1": {
+        "text": true,
+        "emoji": true,
+        "emoji_init": "random",
+        "fusion": "concat"
+      },
+      "E2": {
+        "text": true,
+        "emoji": true,
+        "emoji_init": "pretrained",
+        "fusion": "concat"
+      },
+      "E3": {
+        "text": true,
+        "emoji": true,
+        "emoji_init": "random",
+        "fusion": "attention"
+      },
+      "E4": {
+        "text": true,
+        "emoji": true,
+        "emoji_init": "pretrained",
+        "fusion": "attention"
+      },
+      "E5": {
+        "text": true,
+        "emoji": true,
+        "emoji_init": "pretrained",
+        "fusion": "gated"
+      }
+    },
+    "model_config": {
+      "text_encoder": "bert-base-uncased (frozen)",
+      "max_length": 128,
+      "emoji_embedding_dim": 32,
+      "classifier": "MLP -> 3 classes"
+    },
+    "training_config": {
+      "seed": 42,
+      "optimizer": "AdamW",
+      "learning_rate": 0.001,
+      "batch_size": 32,
+      "epochs": 5,
+      "class_weighting": "inverse-frequency from TRAIN only"
+    }
+  },
+  "class_distribution": {
+    "train": {
+      "0": 35843,
+      "2": 111263,
+      "1": 63593
+    },
+    "validation": {
+      "0": 4073,
+      "2": 9107,
+      "1": 7496
+    },
+    "test": {
+      "2": 5167,
+      "1": 4191,
+      "0": 2608
+    }
+  },
+  "class_weights_train_only": {
+    "0": 1.9594620985966575,
+    "2": 0.6312341029812246,
+    "1": 1.1044140078310505
+  },
+  "colab_cost_estimate": {
+    "n_train": 210699,
+    "featurize_estimate_sec": 421.398,
+    "head_train_estimate_sec": 21.0699,
+    "total_estimate_sec": 442.46790000000004,
+    "total_estimate_min": 7.374465000000001,
+    "cached_embedding_mem_mb": 617.2822265625,
+    "feasible_on_t4": true,
+    "note": "Frozen BERT featurization is one-time and cached. Training the lightweight classifier head on cached embeddings is cheap. Feasible on a single T4 within ~1-2 hours."
+  }
+}
