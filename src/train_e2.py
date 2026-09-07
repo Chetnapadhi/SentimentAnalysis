@@ -113,14 +113,22 @@ def train_e2(
     lr = train_cfg["learning_rate"]
     wd = train_cfg.get("weight_decay", 1e-4)
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=0)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=0)
+    # RTX 3050 4GB VRAM: use gradient accumulation to simulate larger batch
+    physical_batch_size = 8
+    accumulation_steps = batch_size // physical_batch_size  # 32/8 = 4
+    
+    train_loader = DataLoader(train_ds, batch_size=physical_batch_size, shuffle=True, num_workers=0)
+    val_loader = DataLoader(val_ds, batch_size=physical_batch_size, shuffle=False, num_workers=0)
 
     criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))
 
     # Optimize ONLY the classifier head (text encoder frozen, emoji embedding frozen)
     trainable = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(trainable, lr=lr, weight_decay=wd)
+    
+    # Mixed precision for memory efficiency on 4GB GPU
+    from torch.cuda.amp import autocast, GradScaler
+    scaler = GradScaler()
 
     history = {"train_loss": [], "val_loss": [], "val_acc": [], "val_macro_f1": []}
     best_epoch = -1
@@ -132,17 +140,28 @@ def train_e2(
     for epoch in range(1, epochs + 1):
         model.train()
         total_loss, n_batches = 0.0, 0
-        for text_emb, e_ids, e_mask, lab in train_loader:
+        optimizer.zero_grad()
+        
+        for i, (text_emb, e_ids, e_mask, lab) in enumerate(train_loader):
             text_emb, lab = text_emb.to(device), lab.to(device)
             e_ids, e_mask = e_ids.to(device), e_mask.to(device)
-            optimizer.zero_grad()
-            emoji_rep = model.emoji_forward(e_ids, e_mask)
-            fused = torch.cat([text_emb, emoji_rep], dim=-1)
-            logits = model.classifier(fused)
-            loss = criterion(logits, lab)
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
+            
+            # Mixed precision forward
+            with autocast():
+                emoji_rep = model.emoji_forward(e_ids, e_mask)
+                fused = torch.cat([text_emb, emoji_rep], dim=-1)
+                logits = model.classifier(fused)
+                loss = criterion(logits, lab)
+                loss = loss / accumulation_steps  # Normalize loss for accumulation
+            
+            scaler.scale(loss).backward()
+            
+            if (i + 1) % accumulation_steps == 0:
+                scaler.step(optimizer)
+                scaler.update()
+                optimizer.zero_grad()
+            
+            total_loss += loss.item() * accumulation_steps
             n_batches += 1
         train_loss = total_loss / max(n_batches, 1)
 
@@ -153,12 +172,13 @@ def train_e2(
             for text_emb, e_ids, e_mask, lab in val_loader:
                 text_emb, lab = text_emb.to(device), lab.to(device)
                 e_ids, e_mask = e_ids.to(device), e_mask.to(device)
-                emoji_rep = model.emoji_forward(e_ids, e_mask)
-                fused = torch.cat([text_emb, emoji_rep], dim=-1)
-                logits = model.classifier(fused)
-                val_loss += criterion(logits, lab).item()
-                all_preds.extend(logits.argmax(dim=-1).cpu().numpy().tolist())
-                all_true.extend(lab.cpu().numpy().tolist())
+                with autocast():
+                    emoji_rep = model.emoji_forward(e_ids, e_mask)
+                    fused = torch.cat([text_emb, emoji_rep], dim=-1)
+                    logits = model.classifier(fused)
+                    val_loss += criterion(logits, lab).item()
+                    all_preds.extend(logits.argmax(dim=-1).cpu().numpy().tolist())
+                    all_true.extend(lab.cpu().numpy().tolist())
         val_loss /= max(len(val_loader), 1)
         val_acc = accuracy_score(all_true, all_preds)
         val_mf1 = f1_score(all_true, all_preds, average="macro", zero_division=0)
@@ -177,7 +197,7 @@ def train_e2(
             no_improve = 0
             torch.save({
                 "classifier_state": model.classifier.state_dict(),
-                "emoji_vocab_size": 32,
+                "emoji_vocab_size": vocab['vocab_size'],  # Use actual vocab size
                 "best_val_f1": val_mf1,
                 "best_epoch": epoch,
                 "class_weights": class_weights.tolist(),
@@ -236,20 +256,75 @@ def main() -> None:
     )
     print("Class weights (train-only):", class_weights.tolist())
 
+    # Load the final transferred embedding artifact (1610x32, 19 pretrained + 1591 random)
+    pretrained_emoji_path = "models/emoji_embeddings/stocktwits_emoji_embedding_e2_1610x32.pt"
+    if not os.path.exists(pretrained_emoji_path):
+        raise FileNotFoundError(
+            f"Pretrained emoji embedding not found at {pretrained_emoji_path}. "
+            "Run the embedding transfer script first."
+        )
+    
+    pretrained_emoji = torch.load(pretrained_emoji_path, map_location="cpu")
+    print(f"Loaded pretrained emoji embedding: {pretrained_emoji_path}")
+    print(f"  Embedding shape: {pretrained_emoji['emoji_embedding'].shape}")
+    print(f"  Vocab size: {pretrained_emoji['vocab_size']}")
+    print(f"  Embedding dim: {pretrained_emoji['embedding_dim']}")
+    print(f"  Pretrained count: {pretrained_emoji.get('pretrained_count', 'N/A')}")
+    print(f"  Random initialized: {pretrained_emoji.get('random_initialized_count', 'N/A')}")
+    print(f"  Seed: {pretrained_emoji.get('seed', 'N/A')}")
+    
     # Tokenizer + frozen text encoder
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     text_model = E2ConcatFusionModel(
         model_name=model_name,
         text_dim=768,
-        emoji_dim=32,
+        emoji_dim=pretrained_emoji['embedding_dim'],  # 32
         num_labels=n_classes,
         dropout=cfg["classifier_head"]["dropout"],
         classifier_hidden=cfg["classifier_head"]["classifier_hidden"],
         freeze_encoder=True,
-        emoji_vocab_size=32,
+        emoji_vocab_size=pretrained_emoji['vocab_size'],  # 1610
         max_emojis=max_emojis,
-        pretrained_emoji_path="models/emoji_embeddings/pretrained_emoji_32d.pt",
+        pretrained_emoji_path="",  # We'll load weights manually after model creation
     )
+    
+    # Load the final transferred embedding (1610x32) directly into the model
+    pretrained_emoji_data = torch.load("models/emoji_embeddings/stocktwits_emoji_embedding_e2_1610x32.pt", map_location="cpu")
+    pretrained_embedding = pretrained_emoji['emoji_embedding']  # [1610, 32]
+    
+    # Verify dimensions match
+    assert pretrained_emoji['vocab_size'] == 1610, f"Expected vocab_size=1610, got {pretrained_emoji['vocab_size']}"
+    assert pretrained_emoji['embedding_dim'] == 32
+    assert pretrained_emoji['emoji_embedding'].shape == (1610, 32)
+    
+    # Create text encoder (frozen BERT)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    text_model = E2ConcatFusionModel(
+        model_name=model_name,
+        text_dim=768,
+        emoji_dim=pretrained_emoji['embedding_dim'],  # 32
+        num_labels=n_classes,
+        dropout=cfg["classifier_head"]["dropout"],
+        classifier_hidden=cfg["classifier_head"]["classifier_hidden"],
+        freeze_encoder=True,
+        emoji_vocab_size=pretrained_emoji['vocab_size'],  # 1610
+        max_emojis=max_emojis,
+        pretrained_emoji_path="",  # We'll load weights manually after model creation
+    )
+    
+    # Load pretrained emoji embeddings into the model
+    pretrained_emoji_data = torch.load("models/emoji_embeddings/stocktwits_emoji_embedding_e2_1610x32.pt", map_location="cpu")
+    pretrained_embedding = pretrained_emoji['emoji_embedding']  # [1610, 32]
+    
+    # Verify dimensions match
+    assert pretrained_emoji['vocab_size'] == 1610, f"Expected vocab_size=1610, got {pretrained_emoji['vocab_size']}"
+    assert pretrained_emoji['embedding_dim'] == 32
+    assert pretrained_emoji['emoji_embedding'].shape == (1610, 32)
+    
+    # Load pretrained weights into the model's emoji_encoder
+    text_model.emoji_encoder.weight.data.copy_(pretrained_emoji['emoji_embedding'])
+    print(f"Loaded pretrained emoji embeddings into model (shape: {pretrained_emoji['emoji_embedding'].shape})")
+    
     encoder = text_model.encoder.to(device)
 
     # Featurize text (cache) — same as E0/E1
