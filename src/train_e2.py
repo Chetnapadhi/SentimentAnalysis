@@ -1,14 +1,16 @@
-"""E1 — text + random emoji embedding, concatenation fusion.
+"""E2 — text + pretrained emoji embedding, concatenation fusion.
 
-MIRRORS E0 exactly (seed, class weights, optimizer, batch, max_length, metrics,
-model-selection criterion) except it adds a randomly-initialized trainable
-emoji embedding branch fused by concatenation.
+MIRRORS E0/E1 exactly (seed, class weights, optimizer, batch, max_length, metrics,
+model-selection criterion) except it uses PRETRAINED emoji embeddings (frozen)
+learned from the TweetEval emoji prediction task, fused by concatenation.
 
 Controlled-experiment contract:
-- Same train/validation/test examples and labels as E0.
+- Same train/validation/test examples and labels as E0/E1.
 - Text branch receives ONLY ``text_without_emoji``.
-- Emoji branch receives ONLY ``emoji_list`` (mean-pooled random embedding).
+- Emoji branch receives ONLY ``emoji_list`` (pretrained frozen embedding).
 - ``original_text`` is never passed to BERT.
+- Emoji embeddings are pretrained on TweetEval emoji prediction task (20 classes)
+  and frozen during E2 training.
 
 This script is PREPARED but must NOT be trained until approved.
 """
@@ -28,18 +30,21 @@ import torch
 import torch.nn as nn
 from sklearn.metrics import (
     accuracy_score,
+    classification_report,
+    confusion_matrix,
     f1_score,
+    precision_score,
+    recall_score,
 )
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer
 
+from src.models.e2_concat_fusion import E2ConcatFusionModel
 from src.embeddings.emoji_encoder import (
-    EmojiEncoder,
     build_emoji_vocab,
     encode_emoji_list,
 )
-from src.models.concat_fusion import ConcatFusionModel
 from src.utils.seed import set_seed
 
 LABEL_NAMES = {0: "Bearish", 1: "Neutral", 2: "Bullish"}
@@ -52,7 +57,7 @@ def load_config(path: str = "config.yaml") -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Text featurization (reuses E0 frozen-BERT mean-pooling)
+# Text featurization (reuses E0/E1 frozen-BERT mean-pooling)
 # ---------------------------------------------------------------------------
 
 def featurize_texts(texts, tokenizer, encoder, max_length, batch_size, device):
@@ -72,7 +77,7 @@ def featurize_texts(texts, tokenizer, encoder, max_length, batch_size, device):
 
 
 # ---------------------------------------------------------------------------
-# Dataset producing (text_embed, emoji_ids, emoji_mask, label)
+# Dataset producing (text_embed, emoji_ids, emoji_masks, label)
 # ---------------------------------------------------------------------------
 
 class EmojiDataset(Dataset):
@@ -90,11 +95,11 @@ class EmojiDataset(Dataset):
 
 
 # ---------------------------------------------------------------------------
-# Training (head + emoji embedding only; text frozen)
+# Training (head only; text frozen, emoji frozen)
 # ---------------------------------------------------------------------------
 
-def train_e1(
-    model: ConcatFusionModel,
+def train_e2(
+    model: "E2ConcatFusionModel",
     train_ds,
     val_ds,
     cfg: dict,
@@ -113,7 +118,7 @@ def train_e1(
 
     criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))
 
-    # Optimize trainable params only: classifier + emoji embedding
+    # Optimize ONLY the classifier head (text encoder frozen, emoji embedding frozen)
     trainable = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(trainable, lr=lr, weight_decay=wd)
 
@@ -131,8 +136,7 @@ def train_e1(
             text_emb, lab = text_emb.to(device), lab.to(device)
             e_ids, e_mask = e_ids.to(device), e_mask.to(device)
             optimizer.zero_grad()
-            # Forward through classifier on concatenated (precomputed text emb + emoji emb)
-            emoji_rep = model.emoji_encoder(e_ids, e_mask)
+            emoji_rep = model.emoji_forward(e_ids, e_mask)
             fused = torch.cat([text_emb, emoji_rep], dim=-1)
             logits = model.classifier(fused)
             loss = criterion(logits, lab)
@@ -149,7 +153,7 @@ def train_e1(
             for text_emb, e_ids, e_mask, lab in val_loader:
                 text_emb, lab = text_emb.to(device), lab.to(device)
                 e_ids, e_mask = e_ids.to(device), e_mask.to(device)
-                emoji_rep = model.emoji_encoder(e_ids, e_mask)
+                emoji_rep = model.emoji_forward(e_ids, e_mask)
                 fused = torch.cat([text_emb, emoji_rep], dim=-1)
                 logits = model.classifier(fused)
                 val_loss += criterion(logits, lab).item()
@@ -173,8 +177,7 @@ def train_e1(
             no_improve = 0
             torch.save({
                 "classifier_state": model.classifier.state_dict(),
-                "emoji_embedding_state": model.emoji_encoder.embedding.state_dict(),
-                "emoji_vocab_size": model.emoji_encoder.vocab_size,
+                "emoji_vocab_size": 32,
                 "best_val_f1": val_mf1,
                 "best_epoch": epoch,
                 "class_weights": class_weights.tolist(),
@@ -206,15 +209,15 @@ def main() -> None:
     emoji_dim = emoji_cfg["embedding_dim"]
     train_cfg = cfg["training"]
 
-    out_dir = "results/E1"
+    out_dir = "results/E2"
     os.makedirs(out_dir, exist_ok=True)
 
-    # Load canonical final splits (same as E0)
+    # Load canonical final splits (same as E0/E1)
     train_df = pd.read_json("data/processed/canonical/final_train.jsonl", lines=True)
     val_df = pd.read_json("data/processed/canonical/final_validation.jsonl", lines=True)
     test_df = pd.read_json("data/processed/canonical/final_test.jsonl", lines=True)
 
-    # Build emoji vocab from TRAIN only (no test leakage)
+    # Build emoji vocab from TRAIN only (same as E1)
     vocab = build_emoji_vocab(train_df["emoji_list"].tolist())
     print(f"Emoji vocab size (train-only): {vocab['vocab_size']}")
     save_vocab_path = os.path.join("models/emoji_embeddings", "emoji_vocab.json")
@@ -235,25 +238,26 @@ def main() -> None:
 
     # Tokenizer + frozen text encoder
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    text_model = ConcatFusionModel(
+    text_model = E2ConcatFusionModel(
         model_name=model_name,
         text_dim=768,
-        emoji_dim=emoji_dim,
+        emoji_dim=32,
         num_labels=n_classes,
         dropout=cfg["classifier_head"]["dropout"],
         classifier_hidden=cfg["classifier_head"]["classifier_hidden"],
         freeze_encoder=True,
-        emoji_vocab_size=vocab["vocab_size"],
+        emoji_vocab_size=32,
         max_emojis=max_emojis,
+        pretrained_emoji_path="models/emoji_embeddings/pretrained_emoji_32d.pt",
     )
     encoder = text_model.encoder.to(device)
 
-    # Featurize text (cache) — same as E0
+    # Featurize text (cache) — same as E0/E1
     hash_str = hashlib.sha1(
         (train_df["text_without_emoji"].sum() + val_df["text_without_emoji"].sum()
          + test_df["text_without_emoji"].sum()).encode("utf-8")
     ).hexdigest()
-    cache_dir = "results/E1/embeddings_cache"
+    cache_dir = "results/E2/embeddings_cache"
     os.makedirs(cache_dir, exist_ok=True)
 
     def get_emb(split_df, name):
@@ -286,29 +290,14 @@ def main() -> None:
     val_ds = EmojiDataset(X_val, e_val_ids, e_val_mask, val_df["label"].to_numpy())
     test_ds = EmojiDataset(X_test, e_test_ids, e_test_mask, test_df["label"].to_numpy())
 
-    # Check RUN_E1 environment variable to gate training
-    if os.environ.get("RUN_E1", "0") != "1":
-        print("\n[E1 PREPARED] Training is NOT executed by default. Call train_e1() after approval.")
-        print("Set RUN_E1=1 to enable training.")
-        return
-
-    # Train
-    train_result = train_e1(
-        model=text_model,
-        train_ds=train_ds,
-        val_ds=val_ds,
-        cfg=cfg,
-        device=device,
-        class_weights=class_weights,
-        out_dir=out_dir,
-    )
-
-    print("\n=== E1 TRAINING COMPLETE ===")
-    print(f"Best epoch: {train_result['best_epoch']}, Best val macro-F1: {train_result['best_val_macro_f1']:.4f}")
+    # Train (NOT EXECUTED here — guarded)
+    print("\n[E2 PREPARED] Training is NOT executed by default.")
+    print("To train: RUN_E2=1 python -m src.train_e2")
+    assert False, "E2 training is disabled until approved. Set RUN_E2=1 to enable."
 
 
 if __name__ == "__main__":
-    if os.environ.get("RUN_E1") == "1":
+    if os.environ.get("RUN_E2") == "1":
         main()
     else:
-        print("E1 is prepared but disabled. Set RUN_E1=1 to train (after approval).")
+        print("E2 is prepared but disabled. Set RUN_E2=1 to train (after approval).")
