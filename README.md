@@ -237,3 +237,51 @@ findings will be populated only after actual evaluation.
 - Conflicting label texts (a text appearing in more than one class file) are **dropped**, never guessed. ~0.5% of rows affected.
 - The YouTube dataset is not a sentiment dataset and will not be used as one without documented annotation.
 - Gate values will be reported as interpretability signals, not causal explanations.
+
+
+Step 1: Open Terminal (PowerShell or Command Prompt)
+Navigate into your project root directory:
+
+powershell
+
+
+cd D:\DL
+Step 2: Activate the Virtual Environment
+powershell
+
+
+# In PowerShell:
+.\.venv\Scripts\Activate.ps1
+# (Or if using standard CMD):
+.\.venv\Scripts\activate.bat
+Tip: If PowerShell gives an execution policy error on script activation, run this once: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+Step 3: Run the Streamlit Dashboard
+powershell
+
+
+streamlit run app.py
+(Or without activating manually, run directly with the virtualenv Python executable:)
+
+powershell
+
+
+.\.venv\Scripts\streamlit.exe run app.py
+Step 4: Open in Browser
+Once executed, the dashboard will open automatically or you can open: 👉 http://localhost:8501
+
+Useful Extra Commands (Reference)
+Stop the running server: Press Ctrl + C in the terminal.
+
+Run on a specific port (if 8501 is busy):
+
+powershell
+
+
+.\.venv\Scripts\streamlit.exe run app.py --server.port 8502
+Run the full analysis script standalone (reproducibility check):
+
+powershell
+
+
+.\.venv\Scripts\python.exe src/analysis/run_all_analysis.py
