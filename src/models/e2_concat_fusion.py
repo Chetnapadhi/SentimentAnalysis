@@ -409,7 +409,21 @@ class E2ConcatFusionModel(nn.Module):
         print(f"Initialized {overlap_count} overlapping emojis with TweetEval pretrained vectors")
 
     def emoji_forward(self, emoji_ids, emoji_masks):
-        # Text branch
+        """Mean-pool the frozen pretrained emoji embeddings.
+
+        Zero-emoji rows return a clean zero vector rather than dividing by
+        zero, matching the E5 convention.
+        """
+        emb = self.emoji_encoder(emoji_ids)              # (B, M, D)
+        mask = emoji_masks.unsqueeze(-1).float()         # (B, M, 1)
+        counts = mask.sum(dim=1)                         # (B, 1)
+        summed = (emb * mask).sum(dim=1)                 # (B, D)
+        return torch.where(
+            counts > 0, summed / counts.clamp(min=1.0), torch.zeros_like(summed)
+        )
+
+    def forward(self, input_ids, attention_mask, emoji_ids, emoji_masks):
+        """End-to-end forward (encodes text from tokens)."""
         outputs = self.encoder(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -417,17 +431,14 @@ class E2ConcatFusionModel(nn.Module):
         )
         last_hidden = outputs.last_hidden_state
         mask = attention_mask.unsqueeze(-1).float()
-        summed = (last_hidden * mask).sum(dim=1)
-        counts = mask.sum(dim=1).clamp(min=1e-9)
-        text_rep = summed / counts  # (B, 768)
+        text_rep = (last_hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1e-9)
+        return self.forward_from_cache(text_rep, emoji_ids, emoji_masks)
 
-        # Emoji branch
-        emoji_rep = self.emoji_forward(emoji_ids, emoji_masks)  # (B, 32)
-
-        # Fusion: concatenation
-        fused = torch.cat([text_rep, emoji_rep], dim=-1)  # (B, 800)
-        logits = self.classifier(fused)
-        return logits
+    def forward_from_cache(self, text_rep, emoji_ids, emoji_masks):
+        """Forward from precomputed frozen-BERT text embeddings."""
+        emoji_rep = self.emoji_forward(emoji_ids, emoji_masks)   # (B, 32)
+        fused = torch.cat([text_rep, emoji_rep], dim=-1)         # (B, 800)
+        return self.classifier(fused)
 
 
 if __name__ == "__main__":
