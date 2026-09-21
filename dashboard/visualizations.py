@@ -61,6 +61,24 @@ def plot_probability_bars(probs: dict[str, float]) -> go.Figure:
     return fig
 
 
+def plot_emotion_probability_bars(probs: dict[str, float]) -> go.Figure:
+    """Create a probability chart for an arbitrary emotion label space."""
+    labels = list(probs)
+    values = [probs[label] * 100 for label in labels]
+    palette = ["#E76F51", "#F4A261", "#E9C46A", "#2A9D8F", "#457B9D", "#6D597A"]
+    fig = go.Figure(go.Bar(
+        x=values, y=labels, orientation="h",
+        marker_color=[palette[index % len(palette)] for index in range(len(labels))],
+        text=[f"{value:.1f}%" for value in values], textposition="inside",
+    ))
+    fig.update_layout(
+        plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF", height=max(220, 42 * len(labels)),
+        margin=dict(l=10, r=20, t=10, b=20), xaxis=dict(range=[0, 100], title="Probability (%)"),
+        yaxis=dict(autorange="reversed"), font=dict(family="Plus Jakarta Sans, sans-serif", color=TEXT_PRIMARY),
+    )
+    return fig
+
+
 def plot_metric_comparison_bars(
     master_df: pd.DataFrame,
     metric_col: str,

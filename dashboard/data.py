@@ -78,6 +78,16 @@ def load_gate_raw_json() -> dict:
 
 
 @st.cache_data
+def load_emotion_summary() -> list[dict]:
+    """Load the Phase 2 emotion experiment summary generated on Colab."""
+    path = get_project_root() / "results" / "emotion" / "summary.json"
+    if not path.exists():
+        return []
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+@st.cache_data
 def load_confusion_matrix(exp: str) -> list[list[float]]:
     """Return normalized confusion matrix for the requested experiment."""
     path = get_project_root() / "results" / exp / "predictions.csv"

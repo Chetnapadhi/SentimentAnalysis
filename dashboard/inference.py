@@ -1,4 +1,4 @@
-"""Cached model loading and live inference engine for E0, E3, and E5."""
+"""Cached model loading and live inference for the Phase 2 emotion study."""
 
 from __future__ import annotations
 
@@ -14,6 +14,12 @@ import streamlit as st
 from dashboard.data import get_project_root
 from src.data.preprocessing import extract_emojis, remove_emojis
 from src.embeddings.emoji_encoder import encode_emoji_list, load_vocab
+
+EMOTION_LABELS = {
+    "goemotions": ["anger", "disgust", "fear", "joy", "sadness", "surprise"],
+    "tweeteval": ["anger", "joy", "optimism", "sadness"],
+}
+EMOTION_BACKBONE = "cardiffnlp/twitter-roberta-base"
 
 
 # Primary sentiment labels + intuitive financial aliases
@@ -32,7 +38,33 @@ def load_cached_tokenizer():
 def load_cached_emoji_vocab() -> dict:
     """Load and cache the training-derived emoji vocabulary."""
     path = get_project_root() / "models" / "emoji_embeddings" / "emoji_vocab.json"
-    return load_vocab(str(path))
+    vocab = load_vocab(str(path))
+    vocab.setdefault("vocab_size", len(vocab["emoji_to_id"]))
+    return vocab
+
+
+@st.cache_resource
+def load_cached_emotion_vocab(dataset: str) -> dict:
+    vocab_dir = get_project_root() / "models" / "emoji_embeddings"
+    dataset_path = vocab_dir / f"emoji_vocab_{dataset}.json"
+    path = dataset_path if dataset_path.exists() else vocab_dir / "emoji_vocab_emotion_unified.json"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Missing emotion vocabulary for {dataset}. Expected {dataset_path.name} "
+            "or emoji_vocab_emotion_unified.json."
+        )
+    vocab = load_vocab(str(path))
+    # The Colab GoEmotions checkpoint used a 201-entry train-split vocabulary,
+    # while the checked-in unified artifact contains extra corpus entries.
+    if dataset == "goemotions" and len(vocab["emoji_to_id"]) > 201:
+        vocab["emoji_to_id"] = {
+            emoji: index for emoji, index in vocab["emoji_to_id"].items()
+            if index < 201
+        }
+        vocab["vocab_size"] = 201
+    else:
+        vocab.setdefault("vocab_size", len(vocab["emoji_to_id"]))
+    return vocab
 
 
 def get_inference_device() -> torch.device:
@@ -204,4 +236,93 @@ def run_live_inference(
             "Bullish": float(probs[2]),
         },
         "confidence": float(probs[pred_idx]),
+    }
+
+
+@st.cache_resource
+def load_emotion_model(dataset: str = "goemotions", model_key: str = "EM3"):
+    """Load a trained Phase 2 fine-tuned checkpoint for live inference."""
+    from src.emotion_pipeline import unfreeze_top_layers
+    from src.models.e3_attention_fusion import AttentionFusionModel
+    from src.models.e5_gated_fusion import GatedFusionModel
+    from src.models.text_only import TextOnlyModel
+
+    labels = EMOTION_LABELS[dataset]
+    vocab = load_cached_emotion_vocab(dataset)
+    device = get_inference_device()
+    common = {
+        "model_name": EMOTION_BACKBONE,
+        "num_labels": len(labels),
+        "dropout": 0.3,
+        "freeze_encoder": True,
+    }
+    if model_key == "EM0":
+        model = TextOnlyModel(hidden_size=768, **common)
+    elif model_key == "EM3":
+        model = AttentionFusionModel(
+            text_dim=768, emoji_dim=32, classifier_hidden=256,
+            emoji_vocab_size=vocab["vocab_size"], max_emojis=8,
+            init_mode="random", **common,
+        )
+    elif model_key == "EM5":
+        model = GatedFusionModel(
+            text_dim=768, emoji_dim=32, classifier_hidden=256,
+            emoji_vocab_size=vocab["vocab_size"], max_emojis=8,
+            freeze_emoji=False, **common,
+        )
+    else:
+        raise ValueError(f"Unknown emotion model: {model_key}")
+
+    unfreeze_top_layers(model.encoder, 2)
+    path = get_project_root() / "results" / "emotion" / dataset / f"{model_key}_finetune" / "best_model.pt"
+    if not path.exists():
+        raise FileNotFoundError(f"Missing emotion checkpoint: {path}")
+    checkpoint = torch.load(path, map_location=device, weights_only=False)
+    model.load_state_dict(checkpoint["trainable_state_dict"], strict=False)
+    model.to(device)
+    model.eval()
+    return model
+
+
+@st.cache_resource
+def load_emotion_tokenizer():
+    return AutoTokenizer.from_pretrained(EMOTION_BACKBONE)
+
+
+def run_emotion_inference(text: str, dataset: str = "goemotions", model_key: str = "EM3") -> dict[str, Any]:
+    """Predict an emotion using the selected Phase 2 trained model."""
+    if not text or not text.strip():
+        raise ValueError("Please enter a sentence or social-media post.")
+    labels = EMOTION_LABELS[dataset]
+    emojis = extract_emojis(text)
+    stripped = remove_emojis(text)
+    encoded = load_emotion_tokenizer()(stripped, truncation=True, max_length=64, return_tensors="pt")
+    vocab = load_cached_emotion_vocab(dataset)
+    ids, mask = encode_emoji_list(emojis, vocab["emoji_to_id"], max_emojis=8)
+    device = get_inference_device()
+    model = load_emotion_model(dataset, model_key)
+    inputs = {key: value.to(device) for key, value in encoded.items()}
+    with torch.no_grad():
+        if model_key == "EM0":
+            logits = model(**inputs)
+        else:
+            logits = model(
+                **inputs,
+                emoji_ids=torch.tensor([ids], dtype=torch.long, device=device),
+                emoji_masks=torch.tensor([mask], dtype=torch.float32, device=device),
+            )
+    probabilities = torch.softmax(logits, dim=-1)[0].cpu().numpy()
+    predicted = int(np.argmax(probabilities))
+    return {
+        "original_text": text,
+        "text_without_emoji": stripped,
+        "emojis": emojis,
+        "num_emojis": len(emojis),
+        "dataset": dataset,
+        "model": model_key,
+        "pred_label": labels[predicted].title(),
+        "pred_idx": predicted,
+        "probs": {label.title(): float(probabilities[index]) for index, label in enumerate(labels)},
+        "confidence": float(probabilities[predicted]),
+        "labels": [label.title() for label in labels],
     }

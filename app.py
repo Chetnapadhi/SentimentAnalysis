@@ -1,12 +1,4 @@
-"""Emoji-Aware Sentiment Analysis — Streamlit Research Dashboard.
-
-Streamlined 5-Section Architecture:
-1. ⚡ Live Sentiment Analyzer (Real-World Demo: Positive/Neutral/Negative)
-2. ⚖️ Word vs Emoji Comparison (E0 vs E3 vs E5 Side-by-Side)
-3. 📊 Benchmark Results & Why 6 Models? (Tournament Leaderboard & Justifications)
-4. 🔍 Deep-Dive Insights (Class breakdown, Emoji density scaling, Error transitions)
-5. 🎓 Research Conclusions & Teacher FAQ (VIVA prep & Key Takeaways)
-"""
+"""Emotion-aware social text analysis dashboard."""
 
 from __future__ import annotations
 
@@ -17,7 +9,7 @@ from dashboard.styles import CUSTOM_CSS
 
 # 1. Page Configuration
 st.set_page_config(
-    page_title="Emoji-Aware Sentiment Analyzer",
+    page_title="Emotion-Aware Social Text Analyzer",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -27,47 +19,17 @@ st.set_page_config(
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 # 3. Import Page Modules
-from dashboard.pages import (
-    p01_home,
-    p02_live_analyzer,
-    p03_comparative,
-    p04_experiments,
-    p05_per_class,
-    p06_confusion,
-    p07_emoji_insights,
-    p08_error_analysis,
-    p09_gate_analysis,
-    p10_architecture,
-    p11_conclusion,
-)
+from dashboard.pages import p01_home, p02_live_analyzer, p03_comparative, p11_conclusion, p12_emotion_results
 
-# Combined Section Renderers to reduce navigation clutter
-def render_results_section():
-    p04_experiments.render()
-    st.markdown("---")
-    st.markdown("### Architectural Deep-Dive")
-    p10_architecture.render()
-
-def render_insights_section():
-    p05_per_class.render()
-    st.markdown("---")
-    p07_emoji_insights.render()
-    st.markdown("---")
-    p06_confusion.render()
-    st.markdown("---")
-    p08_error_analysis.render()
-    st.markdown("---")
-    p09_gate_analysis.render()
-
-# 4. Streamlined 5-Tab Application Drawer
+# 4. Application Drawer
 st.sidebar.markdown(
     """
     <div style="padding: 0.5rem 0.2rem 1rem 0.2rem;">
         <div style="font-size: 1.15rem; font-weight: 800; color: #FFFFFF; letter-spacing: -0.3px;">
-            🔬 Emoji-Aware AI
+            🧠 Emotion-Aware AI
         </div>
         <div style="font-size: 0.8rem; color: #94A3B8; font-weight: 500;">
-            Sentiment Analysis Platform
+            Fine-Grained Emotion Classification
         </div>
     </div>
     """,
@@ -80,11 +42,10 @@ st.sidebar.markdown(
 )
 
 STREAMLINED_PAGES = {
-    "⚡ Live Sentiment Analyzer": p02_live_analyzer.render,
-    "⚖️ Word vs Emoji Comparison": p03_comparative.render,
-    "🏠 Overview & Research Context": p01_home.render,
-    "📊 Benchmark Results (E0–E5)": render_results_section,
-    "🔍 Detailed Evaluation & Insights": render_insights_section,
+    "⚡ Live Emotion Analyzer": p02_live_analyzer.render,
+    "⚖️ Text vs Emoji Emotion": p03_comparative.render,
+    "🏠 Emotion Project Overview": p01_home.render,
+    "🧠 Emotion Study (Phase 2)": p12_emotion_results.render,
     "📋 Research Conclusions": p11_conclusion.render,
 }
 

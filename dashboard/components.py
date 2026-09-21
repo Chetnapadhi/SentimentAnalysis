@@ -98,7 +98,7 @@ def render_footer():
     st.markdown(
         """
         <div class="research-footer">
-            <strong>Emoji-Aware Sentiment Analysis</strong> &bull; Controlled E0–E5 Research Benchmark &bull; StockTwits Canonical Split
+            <strong>Emotion-Aware Social Text Analysis</strong> &bull; TweetEval + GoEmotions &bull; EM0 / EM3 / EM5
         </div>
         """,
         unsafe_allow_html=True,
