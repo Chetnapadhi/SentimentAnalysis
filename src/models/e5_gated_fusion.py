@@ -44,6 +44,7 @@ class GatedFusionModel(nn.Module):
         emoji_vocab_size: int = 1,
         max_emojis: int = 8,
         pretrained_emoji_path: str = "",
+        freeze_emoji: bool = True,
     ) -> None:
         super().__init__()
         self.model_name = model_name
@@ -69,9 +70,13 @@ class GatedFusionModel(nn.Module):
         else:
             nn.init.normal_(self.emoji_encoder.weight, mean=0.0, std=0.1)
 
-        # Freeze emoji embeddings
+        # Freeze emoji embeddings.
+        # E5 (Phase 1) keeps these frozen because they are pretrained from
+        # TweetEval. The Phase 2 emotion corpora have no pretrained emoji
+        # artifact, so ``freeze_emoji=False`` lets the gate learn against a
+        # trainable random embedding instead. Default preserves E5 behaviour.
         for param in self.emoji_encoder.parameters():
-            param.requires_grad = False
+            param.requires_grad = not freeze_emoji
 
         # 32-dimensional Gate: Linear(800 -> 32) followed by Sigmoid
         self.gate = nn.Sequential(
