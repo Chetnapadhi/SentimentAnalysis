@@ -177,7 +177,7 @@ def build_loaders(args, ctx, model, tokenizer):
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--dataset", choices=["goemotions", "tweeteval"], required=True)
+    p.add_argument("--dataset", choices=["goemotions", "tweeteval", "irony"], required=True)
     p.add_argument("--model", choices=MODEL_CHOICES, required=True)
     p.add_argument("--mode", choices=["frozen", "finetune"], default="frozen")
     p.add_argument("--backbone", default=DEFAULT_BACKBONE)
@@ -239,6 +239,13 @@ def main() -> None:
         encoder_lr=args.encoder_lr if args.mode == "finetune" else None,
         weight_decay=args.weight_decay,
         names=ctx["names"],
+        # Store the exact emoji->id mapping with the weights, so inference can
+        # never pair this checkpoint with a different vocabulary file.
+        checkpoint_meta={
+            "emoji_to_id": ctx["vocab"]["emoji_to_id"],
+            "backbone": args.backbone,
+            "dataset": args.dataset,
+        },
     )
 
     evaluate_model(

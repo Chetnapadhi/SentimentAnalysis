@@ -207,12 +207,52 @@ def build_tweeteval_emotion() -> tuple[dict[str, pd.DataFrame], dict]:
 
 
 # ---------------------------------------------------------------------------
+# TweetEval irony (sarcasm)
+# ---------------------------------------------------------------------------
+
+IRONY_NAMES: list[str] = ["non_irony", "irony"]
+
+
+def build_tweeteval_irony() -> tuple[dict[str, pd.DataFrame], dict]:
+    """Adapt TweetEval ``irony`` (SemEval-2018 Task 3A) to canonical form.
+
+    2,862 / 955 / 784 human-annotated tweets, binary and roughly balanced.
+    None of the emotion corpora contain a sarcasm label, so this is the
+    dataset to train a project-owned sarcasm head on:
+
+        python -m src.data.emotion_adapter --dataset irony
+        python -m src.train_emotion --dataset irony --model em3 --mode finetune
+    """
+    ds = load_dataset("cardiffnlp/tweet_eval", "irony")
+    names = ds["train"].features["label"].names
+
+    splits: dict[str, pd.DataFrame] = {}
+    stats: dict = {
+        "source": "cardiffnlp/tweet_eval (config=irony)",
+        "label_space": "binary irony / non-irony",
+        "label_mapping": {str(i): n for i, n in enumerate(names)},
+        "selection_rule": "used as published; no rows dropped",
+        "splits": {},
+    }
+    for split in ["train", "validation", "test"]:
+        texts = list(ds[split]["text"])
+        labels = list(ds[split]["label"])
+        df = _canonical_rows(texts, labels, [names[l] for l in labels], split)
+        splits[split] = df
+        rep = coverage_report(df)
+        rep["raw_rows"] = len(ds[split])
+        stats["splits"][split] = rep
+    return splits, stats
+
+
+# ---------------------------------------------------------------------------
 # Persistence
 # ---------------------------------------------------------------------------
 
 BUILDERS = {
     "goemotions": build_goemotions_ekman6,
     "tweeteval": build_tweeteval_emotion,
+    "irony": build_tweeteval_irony,
 }
 
 
@@ -268,7 +308,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--dataset", choices=["goemotions", "tweeteval", "all"], default="all"
+        "--dataset", choices=["goemotions", "tweeteval", "irony", "all"], default="all"
     )
     parser.add_argument("--output-dir", default="data/processed/canonical_emotion")
     args = parser.parse_args()

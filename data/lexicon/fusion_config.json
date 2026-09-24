@@ -1,0 +1,25 @@
+{
+  "sarcasm": {
+    "rule_weight": 0.4,
+    "threshold": 0.4,
+    "backend": "pretrained:cardiffnlp/twitter-roberta-base-irony"
+  },
+  "fusion": {
+    "tweeteval/EM0": {
+      "emoji_weight": 1.5,
+      "sarcasm_shift": 0.0
+    },
+    "tweeteval/EM3": {
+      "emoji_weight": 2.0,
+      "sarcasm_shift": 0.0
+    },
+    "goemotions/EM0": {
+      "emoji_weight": 1.0,
+      "sarcasm_shift": 0.0
+    },
+    "goemotions/EM3": {
+      "emoji_weight": 0.5,
+      "sarcasm_shift": 0.0
+    }
+  }
+}

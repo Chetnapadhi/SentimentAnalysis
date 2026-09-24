@@ -37,6 +37,24 @@ def extract_emojis(text: str) -> list[str]:
     return emoji.distinct_emoji_list(text)
 
 
+def extract_emoji_occurrences(text: str) -> list[dict]:
+    """Return EVERY emoji occurrence in order, with character offsets.
+
+    Unlike :func:`extract_emojis` (which the training pipeline depends on and
+    therefore must stay unchanged), repeats are kept: ``"😂😂😂"`` yields three
+    entries, not one. Repetition is how people signal intensity, so the
+    inference-time lexicon needs it.
+
+    Each entry is ``{"emoji": str, "start": int, "end": int}``.
+    """
+    if not isinstance(text, str):
+        return []
+    return [
+        {"emoji": m["emoji"], "start": m["match_start"], "end": m["match_end"]}
+        for m in emoji.emoji_list(text)
+    ]
+
+
 def remove_emojis(text: str) -> str:
     """Remove all emoji from ``text``, preserving the rest exactly."""
     if not isinstance(text, str):

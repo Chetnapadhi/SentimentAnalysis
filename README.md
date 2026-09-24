@@ -22,6 +22,102 @@ We designed and completed **six strictly controlled deep learning experiments (E
 
 ---
 
+## 🔧 Output-Quality Fix: Emoji Lexicon + Sarcasm Detection (no retraining)
+
+### What was wrong
+
+Probing the fine-tuned Phase 2 models showed concrete failures:
+
+| Input | Model said | Root cause |
+|---|---|---|
+| "I just love waiting 3 hours at the DMV 🙄🙄" | joy 0.96 | no sarcasm label in any training set |
+| "Great job management, losing half my money 🤡💸" | joy 0.89 | surface words win |
+| "😂😂😂😂" | anger 0.23 (near uniform) | emoji branch learned almost nothing (2–23% of rows have emojis) |
+| "I can't believe you did this 😡🤬" | surprise 0.84 | emojis ignored; 🤬 not in the training vocabulary |
+| 😰😰😰, 🙄🙄 | seen as one emoji | `extract_emojis` keeps only *distinct* emojis |
+
+Plus a **vocabulary bug**: on a fresh clone the dashboard's GoEmotions EM3 loaded
+`emoji_vocab_emotion_unified.json`, where only **1 of 117** shared emojis had the id
+the checkpoint was trained with — almost every emoji hit the wrong embedding row.
+
+### What was added
+
+| File | Purpose |
+|---|---|
+| `data/lexicon/emoji_lexicon_manual.csv` | **Hand-labelled** emotion distribution, polarity, intensity and sarcasm cue for 287 emojis: every face, heart, hand gesture, and the emotional/finance symbols |
+| `data/lexicon/emoji_lexicon_full.csv` | All 3,963 fully-qualified Unicode emojis with label and source (`manual` / `derived` from the official name / `default` neutral) |
+| `src/lexicon/emoji_lexicon.py` | Lookup with skin-tone / ZWJ / variation-selector normalisation; multi-emoji aggregation (repeats with diminishing returns, trailing-emoji boost, mixed-emotion flag) |
+| `src/lexicon/sarcasm.py`, `text_cues.py` | Sarcasm detection: pretrained irony classifier + explainable rules, with a two-tier verdict |
+| `src/lexicon/hybrid.py` | Fuses the trained model, emoji lexicon and sarcasm; returns the literal and the intended reading |
+| `src/inference.py` | Streamlit-free model loading shared by dashboard and evaluation; refuses a checkpoint whose emoji vocabulary doesn't match |
+| `data/manual/behavioral_suite.csv` | 110 hand-written test sentences: sarcasm, multi-emoji, emoji-only, conflicting emojis, negation, finance |
+| `src/analysis/evaluate_hybrid.py` | Tunes on validation, scores test once → `docs/hybrid_evaluation_report.md` + `data/lexicon/fusion_config.json` |
+| `tests/test_lexicon_hybrid.py` | 18 pure-logic tests, including the no-regression guarantee |
+
+New training runs now store `emoji_to_id` inside the checkpoint, and TweetEval
+irony is wired in as a trainable dataset for a future project-owned sarcasm head:
+`python -m src.train_emotion --dataset irony --model em3 --mode finetune` (not run).
+
+### How it works
+
+```
+p_final(label) ∝ p_model(label) · q_emoji(label) ^ (λ · S)
+```
+
+`q_emoji` is the lexicon's reading of the emojis; `S` is how much emotional evidence
+they carry — **0 when there are no emojis, so emoji-free sentences come out exactly as
+the trained model predicts**. `λ` is chosen on validation per dataset and model.
+
+Sarcasm gets a **two-tier verdict**. *Detected* requires corroboration (clear rule cues,
+or the irony classifier plus at least one word/emoji cue); only then does the dashboard
+headline the intended emotion. *Possible* (the irony classifier alone) is shown as a hint
+and never changes the emotion — the classifier alone scores plain enthusiasm like
+"I am so happy today" at 0.93.
+
+### Results on held-out test data (full report: `docs/hybrid_evaluation_report.md`)
+
+**Emotion, emoji-bearing test rows** — where the lexicon applies:
+
+| | Model only | + Emoji lexicon |
+|---|---|---|
+| TweetEval EM0 (n=333) | 75.1% acc / 67.3 macro-F1 | **82.6% / 72.3** |
+| TweetEval EM3 (n=333) | 74.2% / 67.0 | **81.7% / 73.8** |
+| GoEmotions EM3 (n=80) | 85.0% / 71.9 | **90.0% / 77.6** |
+| GoEmotions EM0 (n=80) | 90.0% / 83.2 | 91.2% / 84.3 |
+
+Emoji-free rows are unchanged, as guaranteed. Overall TweetEval accuracy: 79.7 → 81.5 (EM0), 79.2 → 80.9 (EM3).
+
+**Sarcasm, TweetEval irony test (n=784, human-annotated):**
+
+| | Precision | Recall | Accuracy |
+|---|---|---|---|
+| Pretrained irony classifier alone | 72.0 | 60.5 | 75.0 |
+| **"Detected" verdict** (what the app acts on) | **91.7** | 10.6 | 64.2 |
+| "Detected", emoji-bearing tweets (n=88) | **90.0** | 54.5 | 80.7 |
+
+### Limitations — read before quoting numbers
+
+- **Dataset leak found and removed.** All 311 ironic TweetEval test tweets still contain the
+  `#irony` / `#sarcasm` / `#not` hashtags used to collect them. Scored with them, hand-written
+  rules "reached" 82.6 F1 with 100% recall. They are stripped before every sarcasm evaluation.
+- **"Detected" is precise but conservative**: it catches clear sarcasm (~92% precise) and misses
+  most subtle irony, which surfaces only as "possible".
+- **Headlining the intended emotion costs 0.2–0.4 accuracy** on the emotion test sets, because their
+  annotators often labelled the literal emotion of sarcastic posts. It stays above model-only on
+  TweetEval, and dips just below it on GoEmotions (77.2 vs 77.6 for EM0). The dashboard shows both readings.
+- **The sarcasm tuning objective (macro-F1) was chosen after an irony-F1-tuned result was seen on test.**
+  The reason is independent of the numbers — a false alarm rewrites a sincere emotion — and both results are reported.
+- **GoEmotions has too few emoji rows (~78 in validation) to tune λ reliably**; its chosen weight
+  is small, so e.g. "I can't believe you did this 😡🤬" still reads as surprise there.
+- **The behavioural suite was written by this project**, alongside the rules. Its large gains
+  (model 50–59% → dashboard 72–86%) are a capability check, not evidence of generalisation.
+- `cardiffnlp/twitter-roberta-base-irony` is an **external pretrained model**, not trained by this project.
+- Single seed; no significance testing.
+
+Reproduce: `python -m src.analysis.evaluate_hybrid` (inference only — no training).
+
+---
+
 ## ❓ FAQ: Will a Collaborator Be Able to Work Without the Checkpoints?
 
 > ### **YES, 100% YES.**
