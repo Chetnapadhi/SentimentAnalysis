@@ -44,7 +44,7 @@ the checkpoint was trained with — almost every emoji hit the wrong embedding r
 
 | File | Purpose |
 |---|---|
-| `data/lexicon/emoji_lexicon_manual.csv` | **Hand-labelled** emotion distribution, polarity, intensity and sarcasm cue for 287 emojis: every face, heart, hand gesture, and the emotional/finance symbols |
+| `data/lexicon/emoji_lexicon_manual.csv` | **Hand-labelled** emotion distribution, polarity, intensity and sarcasm cue for 288 emojis: every face, heart, hand gesture, and the emotional/finance symbols |
 | `data/lexicon/emoji_lexicon_full.csv` | All 3,963 fully-qualified Unicode emojis with label and source (`manual` / `derived` from the official name / `default` neutral) |
 | `src/lexicon/emoji_lexicon.py` | Lookup with skin-tone / ZWJ / variation-selector normalisation; multi-emoji aggregation (repeats with diminishing returns, trailing-emoji boost, mixed-emotion flag) |
 | `src/lexicon/sarcasm.py`, `text_cues.py` | Sarcasm detection: pretrained irony classifier + explainable rules, with a two-tier verdict |
@@ -52,7 +52,7 @@ the checkpoint was trained with — almost every emoji hit the wrong embedding r
 | `src/inference.py` | Streamlit-free model loading shared by dashboard and evaluation; refuses a checkpoint whose emoji vocabulary doesn't match |
 | `data/manual/behavioral_suite.csv` | 110 hand-written test sentences: sarcasm, multi-emoji, emoji-only, conflicting emojis, negation, finance |
 | `src/analysis/evaluate_hybrid.py` | Tunes on validation, scores test once → `docs/hybrid_evaluation_report.md` + `data/lexicon/fusion_config.json` |
-| `tests/test_lexicon_hybrid.py` | 18 pure-logic tests, including the no-regression guarantee |
+| `tests/test_lexicon_hybrid.py`, `tests/test_emoji_lexicon_keywords.py` | 20 pure-logic tests, including the no-regression guarantee and whole-word keyword matching |
 
 New training runs now store `emoji_to_id` inside the checkpoint, and TweetEval
 irony is wired in as a trainable dataset for a future project-owned sarcasm head:

@@ -503,6 +503,7 @@ emoji,cldr_name,joy,love,sadness,anger,fear,surprise,disgust,neutral,polarity,in
 👍🏼,thumbs_up_medium-light_skin_tone,0.600,0.000,0.000,0.000,0.000,0.000,0.000,0.400,0.60,0.40,0.35,joy,manual
 👍🏽,thumbs_up_medium_skin_tone,0.600,0.000,0.000,0.000,0.000,0.000,0.000,0.400,0.60,0.40,0.35,joy,manual
 😫,tired_face,0.000,0.000,0.500,0.400,0.100,0.000,0.000,0.000,-0.60,0.70,0.15,sadness,manual
+🚩,triangular_flag,0.000,0.000,0.100,0.300,0.000,0.000,0.400,0.200,-0.60,0.45,0.10,disgust,manual
 🏆,trophy,0.900,0.000,0.000,0.000,0.000,0.100,0.000,0.000,0.90,0.80,0.05,joy,manual
 💕,two_hearts,0.200,0.800,0.000,0.000,0.000,0.000,0.000,0.000,0.85,0.60,0.02,love,manual
 😒,unamused_face,0.000,0.000,0.100,0.350,0.000,0.000,0.350,0.200,-0.60,0.50,0.75,anger,manual
@@ -823,7 +824,6 @@ emoji,cldr_name,joy,love,sadness,anger,fear,surprise,disgust,neutral,polarity,in
 🎇,sparkler,0.900,0.000,0.000,0.000,0.000,0.100,0.000,0.000,0.80,0.70,0.00,joy,derived
 🏅,sports_medal,0.900,0.000,0.000,0.000,0.000,0.100,0.000,0.000,0.80,0.70,0.00,joy,derived
 🏳️‍⚧️,transgender_flag,0.000,0.000,0.000,0.000,0.000,0.000,0.000,1.000,0.00,0.00,0.00,neutral,derived
-🚩,triangular_flag,0.000,0.000,0.000,0.000,0.000,0.000,0.000,1.000,0.00,0.00,0.00,neutral,derived
 🏳️,white_flag,0.000,0.000,0.000,0.000,0.000,0.000,0.000,1.000,0.00,0.00,0.00,neutral,derived
 🅰️,a_button_(blood_type),0.000,0.000,0.000,0.000,0.000,0.000,0.000,1.000,0.00,0.05,0.00,neutral,default
 🆎,ab_button_(blood_type),0.000,0.000,0.000,0.000,0.000,0.000,0.000,1.000,0.00,0.05,0.00,neutral,default

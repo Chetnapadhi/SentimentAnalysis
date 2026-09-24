@@ -11,7 +11,7 @@ explicitly, at inference time, from a hand-curated lexicon.
 
 Label sources, in priority order
 --------------------------------
-``manual``   287 emojis hand-labelled in ``data/lexicon/emoji_lexicon_manual.csv``:
+``manual``   288 emojis hand-labelled in ``data/lexicon/emoji_lexicon_manual.csv``:
              every face, heart, hand gesture, and the emotionally loaded
              symbols and finance emojis (🚀 📉 💸 💎 🐂 🐻 ...).
 ``derived``  Any other emoji whose official CLDR name contains an emotional
