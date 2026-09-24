@@ -1,0 +1,111 @@
+id,category,sarcastic,expected_emotion,text
+S01,sarcasm_emoji,1,anger,I just love it when my phone dies at 2% 🙄
+S02,sarcasm_emoji,1,anger,Oh great another Monday 🙃
+S03,sarcasm_emoji,1,disgust,Wow what a genius idea to schedule the meeting at 7am 🤡
+S04,sarcasm_emoji,1,anger,Thanks for cancelling my order without telling me 👏👏
+S05,sarcasm_emoji,1,sadness,Love how my paycheck disappears in two days 🙂
+S06,sarcasm_emoji,1,anger,Yeah right like the bus is ever on time 😒
+S07,sarcasm_emoji,1,anger,Perfect weather for my outdoor wedding 🙃🌧️
+S08,sarcasm_emoji,1,disgust,Sure let's trust the guy who lied three times already 🤡🤡
+S09,sarcasm_emoji,1,anger,Nothing like being stuck in traffic for two hours 🙄🙄🙄
+S10,sarcasm_emoji,1,anger,My favorite hobby is fixing other people's mistakes 😏
+S11,sarcasm_emoji,1,sadness,Best birthday ever everyone forgot 🙂🙂
+S12,sarcasm_emoji,1,anger,Oh wonderful the wifi is down again 🙄
+S13,sarcasm_emoji,1,disgust,What a surprise the politician broke his promise 🤡
+S14,sarcasm_emoji,1,anger,Just what I needed a flat tire on the highway 🙃
+S15,sarcasm_emoji,1,anger,Great job team we lost by forty points 👏🙄
+S16,sarcasm_emoji,1,disgust,Amazing customer service kept me on hold for an hour 😒
+S17,sarcasm_emoji,1,anger,So glad my flight got delayed again 😑
+S18,sarcasm_emoji,1,sadness,Loving this 5am alarm for my exam 🥲
+S19,sarcasm_emoji,1,anger,Can't wait to do my taxes this weekend 🙄
+S20,sarcasm_emoji,1,disgust,Brilliant decision to raise prices again 🤦
+T01,sarcasm_text,1,anger,Oh great just what I needed another bill
+T02,sarcasm_text,1,anger,Yeah right because that makes sense
+T03,sarcasm_text,1,anger,What could possibly go wrong with this plan
+T04,sarcasm_text,1,disgust,Wow such a creative excuse for being late again
+T05,sarcasm_text,1,anger,Thanks for nothing customer support
+T06,sarcasm_text,1,anger,I love waiting in line at the DMV all day
+T07,sarcasm_text,1,sadness,Lucky me my car broke down right before the interview
+T08,sarcasm_text,1,anger,Cool story bro nobody asked
+T09,sarcasm_text,1,disgust,Said no one ever: I enjoy doing laundry /s
+T10,sarcasm_text,1,anger,Sure Jan the project will definitely be done by Friday
+T11,sarcasm_text,1,anger,How convenient the printer breaks right when I need it
+T12,sarcasm_text,1,anger,Great another meeting that could have been an email
+T13,sarcasm_text,1,sadness,Story of my life missed the train by one minute
+T14,sarcasm_text,1,anger,Perfect timing for the power outage during my presentation
+T15,sarcasm_text,1,anger,I just love when people talk during movies #sarcasm
+C01,sincere_positive_emoji,0,joy,That joke was hilarious 😂😂
+C02,sincere_positive_emoji,0,joy,Thanks so much for the help today 👍
+C03,sincere_positive_emoji,0,joy,Had a lovely time at the beach 🙂
+C04,sincere_positive_emoji,0,love,Happy anniversary to my best friend ❤️❤️
+C05,sincere_positive_emoji,0,joy,Finally passed my driving test 🎉🥳
+C06,sincere_positive_emoji,0,joy,This pizza is so good 😋
+C07,sincere_positive_emoji,0,love,My baby niece just smiled at me 🥰
+C08,sincere_positive_emoji,0,joy,We got the job offer 🙌🙌
+C09,sincere_positive_emoji,0,joy,Great job on the presentation today 👏
+C10,sincere_positive_emoji,0,joy,Can't wait for the concert tonight 🤩
+C11,sincere_positive_emoji,0,joy,Weekend trip with friends 😎☀️
+C12,sincere_positive_emoji,0,love,Thank you mom for everything 🙏❤️
+C13,sincere_positive_emoji,0,joy,The sunset tonight was beautiful 🌅✨
+C14,sincere_positive_emoji,0,joy,My team won the finals 🏆🔥
+C15,sincere_positive_emoji,0,joy,So proud of my little brother 💪😊
+M01,multi_emoji_intensity,0,sadness,I miss her so much 😭😭😭😭
+M02,multi_emoji_intensity,0,anger,Who parked in my spot 😡😡😡
+M03,multi_emoji_intensity,0,fear,There is a spider in my room 😱😱
+M04,multi_emoji_intensity,0,joy,We are going to Disney 🎉🎉🎉🎉
+M05,multi_emoji_intensity,0,love,You mean the world to me 💕💕💕
+M06,multi_emoji_intensity,0,disgust,Someone left food in the fridge for a month 🤢🤢🤮
+M07,multi_emoji_intensity,0,joy,That video had me dying 😂😂😂😂😂
+M08,multi_emoji_intensity,0,sadness,Rest in peace grandpa 💔💔😢
+M09,multi_emoji_intensity,0,fear,Exam results come out tomorrow 😰😰😰
+M10,multi_emoji_intensity,0,anger,They cancelled the show again 🤬🤬
+M11,multi_emoji_intensity,0,surprise,He proposed out of nowhere 😱😍😱
+M12,multi_emoji_intensity,0,joy,New puppy day 🐶🥰😍🎉
+E01,emoji_only,0,joy,😂😂😂
+E02,emoji_only,0,sadness,😭😭
+E03,emoji_only,0,anger,😡🤬
+E04,emoji_only,0,love,❤️😍🥰
+E05,emoji_only,0,fear,😱😰
+E06,emoji_only,0,disgust,🤮🤢
+E07,emoji_only,0,joy,🎉🥳🎊
+E08,emoji_only,0,sadness,💔😢
+E09,emoji_only,0,surprise,😲🤯
+E10,emoji_only,0,anger,😤😠
+X01,conflicting_emojis,0,joy,I laughed so hard I cried 😂😭
+X02,conflicting_emojis,0,sadness,Graduation day happy but I will miss everyone 🎓😢
+X03,conflicting_emojis,0,fear,Excited but terrified for my first skydive 😁😱
+X04,conflicting_emojis,0,love,This movie broke my heart in the best way 💔🥰
+X05,conflicting_emojis,0,joy,Tired but so happy we finished 😩🎉
+X06,conflicting_emojis,0,sadness,Moving away today excited but heartbroken 🙂💔
+G01,emoji_overrides_text,0,anger,ok 😡
+G02,emoji_overrides_text,0,fear,the exam is tomorrow 😰
+G03,emoji_overrides_text,0,sadness,got the results 😢
+G04,emoji_overrides_text,0,joy,got the results 🎉
+G05,emoji_overrides_text,0,disgust,look at this sandwich 🤢
+G06,emoji_overrides_text,0,love,look at this puppy 😍
+G07,emoji_overrides_text,0,surprise,just saw the news 😱
+G08,emoji_overrides_text,0,anger,just saw the news 😤
+N01,negation,0,sadness,I am not happy with how today went 😞
+N02,negation,0,joy,I'm not sad at all actually 😊
+N03,negation,0,anger,This is not okay 😠
+N04,negation,0,joy,Never been happier 🥰
+N05,negation,0,sadness,Nothing is going right anymore 😔
+N06,negation,0,anger,I can't stand this anymore 😤
+F01,finance,0,joy,$TSLA to the moon 🚀🚀🚀
+F02,finance,0,sadness,Bagholding again down 40% 📉😭
+F03,finance,1,anger,Great call buying at the top 🤡📉
+F04,finance,0,joy,Portfolio up 20% this week 📈💰
+F05,finance,0,fear,Market crash incoming 😰📉
+F06,finance,1,sadness,Love watching my savings turn into dust 🙃💸
+F07,finance,0,joy,Diamond hands paid off 💎🙌
+F08,finance,1,anger,Yeah sure this stock is definitely going to recover 😂📉
+F09,finance,0,anger,Got rug pulled again 🤬
+F10,finance,0,joy,Earnings beat expectations 🎉📈
+P01,plain,0,joy,I am so happy today
+P02,plain,0,sadness,My dog passed away this morning
+P03,plain,0,anger,I am furious about the delay
+P04,plain,0,fear,I am scared about the surgery
+P05,plain,0,joy,We won the championship
+P06,plain,0,sadness,I feel so lonely lately
+P07,plain,0,anger,Stop lying to me
+P08,plain,0,disgust,That smell is disgusting

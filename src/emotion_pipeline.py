@@ -53,7 +53,7 @@ from sklearn.metrics import (
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-from src.data.emotion_adapter import EKMAN6_NAMES, TWEETEVAL_NAMES, load_emotion_splits
+from src.data.emotion_adapter import EKMAN6_NAMES, IRONY_NAMES, TWEETEVAL_NAMES, load_emotion_splits
 from src.embeddings.emoji_encoder import build_emoji_vocab, encode_emoji_list, save_vocab
 from src.utils.seed import set_seed
 
@@ -64,6 +64,7 @@ from src.utils.seed import set_seed
 DATASET_LABELS: dict[str, list[str]] = {
     "goemotions": EKMAN6_NAMES,
     "tweeteval": TWEETEVAL_NAMES,
+    "irony": IRONY_NAMES,
 }
 
 DEFAULT_BACKBONE = "cardiffnlp/twitter-roberta-base"
@@ -325,6 +326,7 @@ def train_model(
     weight_decay: float,
     names: list[str],
     max_grad_norm: float = 1.0,
+    checkpoint_meta: dict | None = None,
 ) -> dict:
     """Train with best-checkpoint selection on validation macro-F1.
 
@@ -404,6 +406,7 @@ def train_model(
                 best_val_macro_f1=val_f1,
                 best_epoch=epoch,
                 label_names=names,
+                **(checkpoint_meta or {}),
             )
             print(f"  [*] new best checkpoint (Val Macro-F1 {val_f1:.4f})")
 

@@ -1,7 +1,14 @@
-"""Cached model loading and live inference for the Phase 2 emotion study."""
+"""Cached model loading and live inference for the Phase 2 emotion study.
+
+Emotion inference is a hybrid: the trained EM0/EM3 model, the hand-labelled
+emoji lexicon, and a sarcasm detector (see ``src/lexicon/``). Model loading
+and batching live in ``src/inference.py`` so the dashboard and the offline
+evaluation run identical code; this module only adds Streamlit caching.
+"""
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -14,12 +21,7 @@ import streamlit as st
 from dashboard.data import get_project_root
 from src.data.preprocessing import extract_emojis, remove_emojis
 from src.embeddings.emoji_encoder import encode_emoji_list, load_vocab
-
-EMOTION_LABELS = {
-    "goemotions": ["anger", "disgust", "fear", "joy", "sadness", "surprise"],
-    "tweeteval": ["anger", "joy", "optimism", "sadness"],
-}
-EMOTION_BACKBONE = "cardiffnlp/twitter-roberta-base"
+from src.inference import EMOTION_BACKBONE, EMOTION_LABELS  # noqa: F401  (re-exported)
 
 
 # Primary sentiment labels + intuitive financial aliases
@@ -40,30 +42,6 @@ def load_cached_emoji_vocab() -> dict:
     path = get_project_root() / "models" / "emoji_embeddings" / "emoji_vocab.json"
     vocab = load_vocab(str(path))
     vocab.setdefault("vocab_size", len(vocab["emoji_to_id"]))
-    return vocab
-
-
-@st.cache_resource
-def load_cached_emotion_vocab(dataset: str) -> dict:
-    vocab_dir = get_project_root() / "models" / "emoji_embeddings"
-    dataset_path = vocab_dir / f"emoji_vocab_{dataset}.json"
-    path = dataset_path if dataset_path.exists() else vocab_dir / "emoji_vocab_emotion_unified.json"
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Missing emotion vocabulary for {dataset}. Expected {dataset_path.name} "
-            "or emoji_vocab_emotion_unified.json."
-        )
-    vocab = load_vocab(str(path))
-    # The Colab GoEmotions checkpoint used a 201-entry train-split vocabulary,
-    # while the checked-in unified artifact contains extra corpus entries.
-    if dataset == "goemotions" and len(vocab["emoji_to_id"]) > 201:
-        vocab["emoji_to_id"] = {
-            emoji: index for emoji, index in vocab["emoji_to_id"].items()
-            if index < 201
-        }
-        vocab["vocab_size"] = 201
-    else:
-        vocab.setdefault("vocab_size", len(vocab["emoji_to_id"]))
     return vocab
 
 
@@ -239,90 +217,110 @@ def run_live_inference(
     }
 
 
+# ---------------------------------------------------------------------------
+# Phase 2: hybrid emotion inference
+# ---------------------------------------------------------------------------
+
+FUSION_CONFIG_PATH = get_project_root() / "data" / "lexicon" / "fusion_config.json"
+
+
 @st.cache_resource
-def load_emotion_model(dataset: str = "goemotions", model_key: str = "EM3"):
-    """Load a trained Phase 2 fine-tuned checkpoint for live inference."""
-    from src.emotion_pipeline import unfreeze_top_layers
-    from src.models.e3_attention_fusion import AttentionFusionModel
-    from src.models.e5_gated_fusion import GatedFusionModel
-    from src.models.text_only import TextOnlyModel
-
-    labels = EMOTION_LABELS[dataset]
-    vocab = load_cached_emotion_vocab(dataset)
-    device = get_inference_device()
-    common = {
-        "model_name": EMOTION_BACKBONE,
-        "num_labels": len(labels),
-        "dropout": 0.3,
-        "freeze_encoder": True,
-    }
-    if model_key == "EM0":
-        model = TextOnlyModel(hidden_size=768, **common)
-    elif model_key == "EM3":
-        model = AttentionFusionModel(
-            text_dim=768, emoji_dim=32, classifier_hidden=256,
-            emoji_vocab_size=vocab["vocab_size"], max_emojis=8,
-            init_mode="random", **common,
-        )
-    elif model_key == "EM5":
-        model = GatedFusionModel(
-            text_dim=768, emoji_dim=32, classifier_hidden=256,
-            emoji_vocab_size=vocab["vocab_size"], max_emojis=8,
-            freeze_emoji=False, **common,
-        )
-    else:
-        raise ValueError(f"Unknown emotion model: {model_key}")
-
-    unfreeze_top_layers(model.encoder, 2)
-    path = get_project_root() / "results" / "emotion" / dataset / f"{model_key}_finetune" / "best_model.pt"
-    if not path.exists():
-        raise FileNotFoundError(f"Missing emotion checkpoint: {path}")
-    checkpoint = torch.load(path, map_location=device, weights_only=False)
-    model.load_state_dict(checkpoint["trainable_state_dict"], strict=False)
-    model.to(device)
-    model.eval()
-    return model
+def load_fusion_config() -> dict:
+    """Parameters chosen on validation by ``src/analysis/evaluate_hybrid.py``."""
+    if FUSION_CONFIG_PATH.exists():
+        return json.loads(FUSION_CONFIG_PATH.read_text(encoding="utf-8"))
+    return {}
 
 
 @st.cache_resource
-def load_emotion_tokenizer():
-    return AutoTokenizer.from_pretrained(EMOTION_BACKBONE)
+def load_emotion_model(dataset: str = "goemotions", model_key: str = "EM3"):
+    """Trained Phase 2 checkpoint + the exact emoji vocabulary it was trained with."""
+    from src.inference import load_emotion_model as _load
+    return _load(dataset, model_key)
 
 
-def run_emotion_inference(text: str, dataset: str = "goemotions", model_key: str = "EM3") -> dict[str, Any]:
-    """Predict an emotion using the selected Phase 2 trained model."""
+@st.cache_resource
+def load_sarcasm_detector():
+    """Pretrained irony classifier + rules; falls back to rules if unavailable."""
+    from src.lexicon.sarcasm import SarcasmDetector
+    cfg = load_fusion_config().get("sarcasm", {})
+    return SarcasmDetector(
+        backend=os.environ.get("SARCASM_BACKEND", "auto"),
+        threshold=cfg.get("threshold", 0.5),
+        rule_weight=cfg.get("rule_weight", 0.6),
+    )
+
+
+def run_emotion_inference(
+    text: str, dataset: str = "goemotions", model_key: str = "EM3", mode: str = "hybrid",
+) -> dict[str, Any]:
+    """Predict an emotion.
+
+    ``mode="hybrid"`` (default) fuses the trained model with the emoji lexicon
+    and sarcasm detection. ``mode="model"`` returns the trained model alone.
+    Both readings are always included in the result so the UI can show how
+    the lexicon and sarcasm layers changed the answer.
+    """
+    from src.inference import predict_proba
+    from src.lexicon.hybrid import FusionConfig, HybridEmotionPredictor
+
     if not text or not text.strip():
         raise ValueError("Please enter a sentence or social-media post.")
     labels = EMOTION_LABELS[dataset]
-    emojis = extract_emojis(text)
-    stripped = remove_emojis(text)
-    encoded = load_emotion_tokenizer()(stripped, truncation=True, max_length=64, return_tensors="pt")
-    vocab = load_cached_emotion_vocab(dataset)
-    ids, mask = encode_emoji_list(emojis, vocab["emoji_to_id"], max_emojis=8)
-    device = get_inference_device()
-    model = load_emotion_model(dataset, model_key)
-    inputs = {key: value.to(device) for key, value in encoded.items()}
-    with torch.no_grad():
-        if model_key == "EM0":
-            logits = model(**inputs)
-        else:
-            logits = model(
-                **inputs,
-                emoji_ids=torch.tensor([ids], dtype=torch.long, device=device),
-                emoji_masks=torch.tensor([mask], dtype=torch.float32, device=device),
-            )
-    probabilities = torch.softmax(logits, dim=-1)[0].cpu().numpy()
-    predicted = int(np.argmax(probabilities))
+    load_emotion_model(dataset, model_key)                  # warm the Streamlit cache
+    model_probs = predict_proba([text], dataset, model_key)[0]
+
+    tuned = load_fusion_config().get("fusion", {}).get(f"{dataset}/{model_key}", {})
+    sarcasm_cfg = load_fusion_config().get("sarcasm", {})
+    cfg = FusionConfig(
+        emoji_weight=tuned.get("emoji_weight", 1.5),
+        sarcasm_shift=tuned.get("sarcasm_shift", 0.85),
+        sarcasm_threshold=sarcasm_cfg.get("threshold", 0.5),
+    )
+    if mode == "model":
+        cfg = FusionConfig(emoji_weight=0.0, sarcasm_shift=0.0)
+
+    result = HybridEmotionPredictor(dataset, load_sarcasm_detector(), cfg).predict(text, model_probs)
+    sarcasm = result.sarcasm
+    detected = bool(sarcasm.is_sarcastic and mode == "hybrid")
+    # Headline: the intended emotion when sarcasm is corroborated ("detected",
+    # ~92% precise on held-out TweetEval irony), else the validated hybrid.
+    # Measured cost on the emotion test sets: 0.2-0.4 accuracy points, because
+    # their annotators often labelled the literal emotion of sarcastic posts.
+    final = result.intended_probs if detected and result.intended_probs is not None else result.probs
+    predicted = int(np.argmax(final))
     return {
         "original_text": text,
-        "text_without_emoji": stripped,
-        "emojis": emojis,
-        "num_emojis": len(emojis),
+        "text_without_emoji": remove_emojis(text),
+        "emojis": extract_emojis(text),
+        "num_emojis": result.evidence.n_occurrences,
         "dataset": dataset,
         "model": model_key,
+        "mode": mode,
+        "labels": [label.title() for label in labels],
+        # final answer
         "pred_label": labels[predicted].title(),
         "pred_idx": predicted,
-        "probs": {label.title(): float(probabilities[index]) for index, label in enumerate(labels)},
-        "confidence": float(probabilities[predicted]),
-        "labels": [label.title() for label in labels],
+        "probs": {label.title(): float(final[i]) for i, label in enumerate(labels)},
+        "confidence": float(final[predicted]),
+        # the trained model on its own, for comparison
+        "model_label": result.model_label.title(),
+        "model_probs": {label.title(): float(result.model_probs[i]) for i, label in enumerate(labels)},
+        "surface_label": result.surface_label.title(),
+        "validated_label": result.label.title(),
+        # explanations
+        "sarcasm": {
+            "probability": float(sarcasm.probability),
+            "level": sarcasm.level if mode == "hybrid" else "none",
+            "is_sarcastic": detected,
+            "reasons": sarcasm.reasons,
+            "backend": sarcasm.backend,
+        },
+        "emoji_evidence": {
+            "strength": float(result.evidence.strength),
+            "mixed": bool(result.evidence.mixed),
+            "top_label": result.evidence.top_label,
+            "breakdown": result.evidence.breakdown,
+        },
+        "notes": result.notes,
     }
